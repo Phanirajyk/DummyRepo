@@ -1,0 +1,47 @@
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config
+		doc:name="HTTP Listener config" name="listener_configuration">
+		<http:listener-connection protocol="HTTP"
+			host="localhost" port="8081" />
+	</http:listener-config>
+	<os:object-store doc:name="Object store"
+		name="object_store" />
+	<flow name="flow-to-be-tested">
+		<http:listener doc:name="Listener" path="/user"
+			config-ref="listener_configuration" />
+		<logger doc:name="Logger" level="INFO" message="#[message]" />
+		<choice doc:name="Choice">
+			<when expression="#[attributes.queryParams.name != null]">
+				<ee:transform
+					doc:name="Transform Message (to be spied)">
+					<ee:message>
+						<ee:set-payload>payload as Array reduce ($ + $$)</ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<os:store doc:name="Object Store (to be mocked)"
+					key="#[attributes.queryParams.name]" objectStore="object_store">
+					<os:value>#[payload]</os:value>
+				</os:store>
+				<set-payload doc:name="Set SUCCESS (to be verified)"
+					value="SUCCESS" />
+			</when>
+			<otherwise>
+				<set-payload doc:name="Set FAILED (not called)"
+					value="FAILED" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-continue doc:name="On Error Continue"
+				type="ANY">
+				<set-payload doc:name="Set FAILED (not called)"
+					value="FAILED" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>
